@@ -12,14 +12,18 @@
         "name": "DVP"
     },
     "client": {
-        "host": "localhost",
-        "port": 3001,
-        "protocol": "http"
+        "host": "",
+        "port": 443,
+        "protocol": "https"
     },
     "jwt": {
         "secret": ""
     },
     "bcrypt": {
         "saltRounds": 12
+    },
+    "api": {
+        "port": 3000,
+        "interface": "127.0.0.1"
     }
 }

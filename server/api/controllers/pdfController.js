@@ -1,10 +1,11 @@
-const { emitter } = require('../../eventsCommon');
 const mongoose = require('mongoose');
 const { spawn } = require('child_process');
 const ejs = require('ejs');
 const fs = require('fs');
 const Project = mongoose.model('Project');
 const File = mongoose.model('File');
+
+const { ProjectNotFoundError } = require('../../helpers/Errors');
 
 const PDFUtils = {
     /**
@@ -13,14 +14,14 @@ const PDFUtils = {
      * @see generateHTML for how HTML file is generated
      * @see generatePDF for how HTML file is converted to PDF
      */
-    generate: (projectID) => {
+    generate: projectID => {
         return new Promise((resolve, reject) => {
             PDFUtils.generateHTML(projectID)
-                .then(output => {
-                    PDFUtils.generatePDF(output.project, output.path)
-                        .then(resolve)
-                        .catch(reject);
-                })
+                .then(output =>
+                    PDFUtils
+                        .generatePDF(output.project, output.path)
+                )
+                .then(resolve)
                 .catch(reject);
         });
     },
@@ -29,20 +30,23 @@ const PDFUtils = {
      * Generate a HTML file for project
      * @param {ObjectId} projectID Project for which you want to generate a HTML file
      */
-    generateHTML: (projectID) => {
+    generateHTML: projectID => {
         return new Promise((resolve, reject) => {
             Project
                 .findById(projectID)
-                .populate("study_year files partner")
+                .populate("study_year files partner keywords")
                 .populate("specializations.specialization")
-                .exec((err, project) => {
-                    if (err)
-                        throw err;
-                    else if (project) {
-                        ejs.renderFile(process.cwd() + "/api/models/PDF_template.ejs", {
-                            imagePath: process.cwd() + "/PDF/logo-esilv.jpg",
-                            project: project
-                        },
+                .lean()
+                .exec()
+                .then(project => {
+                    if (project) {
+                        // No promises with ejs :(
+                        ejs.renderFile(
+                            process.cwd() + "/api/models/PDF_template.ejs",
+                            {
+                                imagePath: process.cwd() + "/PDF/logo-esilv.png",
+                                project: project
+                            },
                             (err, html) => {
                                 if (err)
                                     reject(err);
@@ -57,7 +61,10 @@ const PDFUtils = {
                                 }
                             });
                     }
-                });
+                    else
+                        throw new ProjectNotFoundError();
+                })
+                .catch(reject);
         });
     },
 
@@ -75,6 +82,10 @@ const PDFUtils = {
                 HTMLpath,
                 PDFpath]
             );
+
+            wkhtmltopdf.on('error', err => {
+                reject(err);
+            })
 
             wkhtmltopdf.on('close', exitCode => {
                 if (exitCode === 0) {
@@ -109,12 +120,14 @@ const PDFUtils = {
      */
     chainPDF: async (projects) => {
         return new Promise((resolve, reject) => {
-            let files = projects.map(p => p.pdf.path)
+            let files = projects.map(p => p.pdf ? p.pdf.path : undefined).filter(p => p !== undefined)
 
             let pdfunite = spawn("pdfunite", [
                 ...files,
                 "./PDF/AllProjects.pdf"]
             );
+
+            pdfunite.on('error', reject);
 
             pdfunite.on('close', exitCode => {
                 if (exitCode != 0)
@@ -134,8 +147,8 @@ const PDFUtils = {
                     fs.unlink(path, err => {
                         if (err) reject(err);
                         else {
-                            File.deleteOne({path}, (err) => {
-                                if(err)reject(err);
+                            File.deleteOne({ path }, (err) => {
+                                if (err) reject(err);
                                 else resolve(PDFUtils);
                             });
                         };
@@ -147,11 +160,11 @@ const PDFUtils = {
     }
 }
 
-emitter.on('projectValidated', data => {
+/*emitter.on('projectValidated', data => {
     PDFUtils
         .generate(data.projectId)
-        .catch(console.error)
-});
+        .catch(err => console.error(err))
+});*/
 
 exports.regeneratePDF = (req, res, next) => {
     const data = req.body;
@@ -173,7 +186,23 @@ exports.regeneratePDF = (req, res, next) => {
     }
 }
 
-exports.generateAllProjectsPDf = (req, res, next) => {
+exports.regenerateAllPDF = (req, res, next) => {
+    Project
+        .find({ status: "validated" })
+        .exec((err, projects) => {
+            if (err) next(err);
+            else if (projects.length > 0) {
+                Promise
+                    .all(projects.map(p => PDFUtils.generate(p._id)))
+                    .then(res.json({ ok: 1 }))
+                    .catch(next);
+            }
+            else
+                next(new Error("NoValidatedProject"));
+        });
+}
+
+exports.generateAllProjectsPDF = (req, res, next) => {
     Project.find({ status: "validated" })
         .populate("pdf")
         .exec((err, projects) => {

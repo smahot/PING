@@ -1,30 +1,52 @@
-'use strict';
-
 const partner = require('../controllers/partnerController');
 const auth = require('../controllers/authController');
+const { handleRequest } = require('../../helpers/Request');
 
 
-module.exports = function (app) {
+module.exports = app => {
 	app.route('/api/partner/reset')
-		.post(partner.resetPassword)
+		.post(handleRequest(partner.resetPassword));
+
+	app.route('/api/partner/me')
+		.get(
+			auth.passport.authenticate('jwt'),
+			handleRequest(partner.myself)
+		)
 
 	app.route('/api/partner/:id([a-fA-F0-9]{24})')
-		.get(partner.findById)
-		.post(partner.updatePartner)
-		.delete(partner.deletePartner);
+		.get(
+			auth.passport.authenticate('jwt'),
+			auth.areAuthorized("Administration"),
+			handleRequest(partner.findById)
+		)
+		.put(
+			auth.passport.authenticate('jwt'),
+			auth.areAuthorized("EPGE"),
+			handleRequest(partner.updatePartner)
+		);
 
 	app.route('/api/partner/:key([a-zA-Z0-9]{16})')
-		.get(partner.findByKey);
+		.get(handleRequest(partner.findByKey));
 
-	//Keep that route in last
 	app.route('/api/partner/:email')
-		.get(partner.findByMail);
+		.get(
+			auth.passport.authenticate('jwt'),
+			auth.areAuthorized("Administration"),
+			handleRequest(partner.findByMail)
+		);
 
 	app.route('/api/partner')
-		// Staff access only
-		.get(auth.passport.authenticate('jwt'), partner.listAllPartners)
-		.put(partner.createPartner)
-		.post(auth.passport.authenticate('jwt'), auth.areAuthorized(["Partner"]), (req, res) => {
-			res.send(req.user);
-		});
+		.get(
+			auth.passport.authenticate('jwt'),
+			auth.areAuthorized("Administration"),
+			handleRequest(partner.getAll)
+		)
+		.post(
+			handleRequest(partner.createPartner)
+		)
+		.put(
+			auth.passport.authenticate('jwt'),
+			auth.areAuthorized("EPGE"),
+			handleRequest(partner.updatePartner)
+		);
 };

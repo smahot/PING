@@ -1,17 +1,42 @@
 const specializationController = require('../controllers/specializationController');
 const auth = require('../controllers/authController');
+const { handleRequest } = require('../../helpers/Request');
 
 module.exports = (app) => {
-    app.route('/api/specialization/:_id([a-zA-Z0-9]{24})')
-        .get(specializationController.findById);
+    app.route('/api/specialization/:id([a-zA-Z0-9]{24})')
+        .get(
+            handleRequest(specializationController.findById)
+        );
 
     app.route('/api/specialization')
-        .get(specializationController.list)
-        .put(auth.passport.authenticate('jwt'), auth.areAuthorized("Administrator"), specializationController.create)
-        .delete(auth.passport.authenticate('jwt'), auth.areAuthorized("Administrator"), specializationController.delete)
-        .post(auth.passport.authenticate('jwt'), auth.areAuthorized("Administrator"), specializationController.update);
+        .get(
+            handleRequest(specializationController.list)
+        )
+        .post(
+            auth.passport.authenticate('jwt'),
+            auth.areAuthorized("EPGE"),
+            handleRequest(specializationController.create)
+        )
+        .put(
+            auth.passport.authenticate('jwt'),
+            auth.areAuthorized("EPGE"),
+            handleRequest(specializationController.update)
+        )
+        .delete(
+            auth.passport.authenticate('jwt'),
+            auth.areAuthorized("EPGE"),
+            handleRequest(specializationController.delete)
+        );
 
     app.route('/api/specialization/referent')
-        .put(auth.passport.authenticate('jwt'), auth.areAuthorized("Administrator"), specializationController.addReferent)
-        .delete(auth.passport.authenticate('jwt'), auth.areAuthorized("Administrator"), specializationController.removeReferent);
+        .post(
+            auth.passport.authenticate('jwt'),
+            auth.areAuthorized("EPGE"),
+            handleRequest(specializationController.addReferent)
+        )
+        .delete(
+            auth.passport.authenticate('jwt'),
+            auth.areAuthorized("EPGE"),
+            handleRequest(specializationController.removeReferent)
+        );
 }

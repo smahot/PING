@@ -3,7 +3,6 @@ import React from 'react';
 import { withStyles } from '@material-ui/core/styles';
 
 import FilesInputs from './FormComponents/FilesInputs';
-import KeyWords from './FormComponents/KeyWords';
 
 import Button from '@material-ui/core/Button';
 import Checkbox from '@material-ui/core/Checkbox';
@@ -36,9 +35,11 @@ class CreateProject extends React.Component {
             files: [],
             infos: "",
             skills: "",
-            keywords: [],
+            confidential: false,
             multipleTeams: false,
+            RandD: false,
             maxNumber: 1,
+            keywords:  ""
         }
 
         this.handleChange = this.handleChange.bind(this);
@@ -49,7 +50,7 @@ class CreateProject extends React.Component {
     }
 
     componentWillMount() {
-        window.scroll(0,0);
+        window.scroll(0, 0);
         AuthService.fetch('/api/specialization')
             .then(res => res.json())
             .then(specializations => {
@@ -110,6 +111,11 @@ class CreateProject extends React.Component {
                     [e.target.name]: e.target.checked
                 });
                 break;
+            case "confidential":
+                this.setState({
+                    [e.target.name]: e.target.checked
+                });
+                break;
             default:
                 this.setState({
                     [e.target.name]: e.target.value
@@ -118,10 +124,8 @@ class CreateProject extends React.Component {
         }
     }
 
-    handleKeyWords = key => this.setState({ keywords: key })
-
     handleNext = e => {
-        if (this.state.title && this.state.study_year.length > 0 && this.state.majors_concerned.length > 0 && this.state.description) {
+        if (this.state.title !== "" && this.state.study_year.length > 0 && this.state.majors_concerned.length > 0 && this.state.description !== "") {
             let data = {
                 title: this.state.title,
                 study_year: this.state.study_year,
@@ -129,26 +133,37 @@ class CreateProject extends React.Component {
                 description: this.state.description,
                 skills: this.state.skills,
                 infos: this.state.infos,
-                maxNumber: this.state.maxNumber
+                maxNumber: this.state.maxNumber,
+                confidential: this.state.confidential,
+                keywords: this.state.keywords
             };
-            if (this.state.keywords) data.keywords = this.state.keywords;
             if (this.state.files.length > 0) data.files = this.state.files.map(file => file._id);
 
-            AuthService.fetch("/api/projects/", {
-                method: "PUT",
+            AuthService.fetch("/api/project/", {
+                method: "POST",
                 body: JSON.stringify(data)
             })
-                .then(res => res.json())
-                .then(data => {
-                    if (data._id)
-                        this.props.next();
+                .then(res => {
+                    if (res.ok)
+                        this.props.next()
+                    else
+                        throw res;
                 })
                 .catch(err => {
-                    this.props.snackbar.notification("error", i18n.t("errors.createProject", { lng: this.props.lng }));
+                    const { lng } = this.props;
+                    console.error(err);
+                    this.props.snackbar.notification("error", i18n.t("errors.createProject", { lng }));
                 });
-        } else {
-            this.props.snackbar.notification("error", i18n.t("errors.fillAll", { lng: this.props.lng }));
         }
+        else if (this.state.study_year.length === 0)
+            this.props.snackbar.notification("error", i18n.t("errors.fillYear", { lng: this.props.lng }));
+
+        else if (this.state.majors_concerned.length === 0)
+            this.props.snackbar.notification("error", i18n.t("errors.fillSpecialization", { lng: this.props.lng }));
+
+        else
+            this.props.snackbar.notification("error", i18n.t("errors.fillAll", { lng: this.props.lng }));
+
     }
 
     renderSelect(e) {
@@ -216,9 +231,9 @@ class CreateProject extends React.Component {
                         <Typography variant="subtitle1" align='center' style={{ fontWeight: "bold" }}>
                             {i18n.t('majors.label', { lng })}
                         </Typography>
-                        <Grid container direction="row" justify='center'>
+                        <Grid container direction="row">
                             {this.state.specializations.map(spe =>
-                                <Grid item key={spe._id}>
+                                <Grid item key={spe._id} xs={12} md={6} lg={4} xl={3}>
                                     <Tooltip placement="bottom" title={lng === "fr" ? spe.description.fr : spe.description.en}>
                                         <FormControlLabel
                                             control={
@@ -242,14 +257,14 @@ class CreateProject extends React.Component {
                         </Typography>
                         <Grid container direction="row" justify='center'>
                             <Grid item xs={4} md={3} lg={2}>
-                                {i18n.t("createPartner.no", {lng})}
+                                {i18n.t("createPartner.no", { lng })}
                                 <Switch
                                     checked={this.state.multipleTeams}
                                     onChange={this.handleChange}
                                     name="multipleTeams"
                                     inputProps={{ 'aria-label': 'secondary checkbox' }}
                                 />
-                                {i18n.t("createPartner.yes", {lng})}                                
+                                {i18n.t("createPartner.yes", { lng })}
                             </Grid>
 
                             <Grid item xs={12} md={6} lg={4}>
@@ -258,7 +273,7 @@ class CreateProject extends React.Component {
                                         label={i18n.t('createProject.maxNumber', { lng })}
                                         value={this.state.maxNumber}
                                         validators={['required', 'matchRegexp:^[0-9]+$']}
-                                        
+
                                         errorMessages={[i18n.t('field.label', { lng }), i18n.t('errors.NaN', { lng })]}
                                         name="maxNumber"
                                         onChange={this.handleChange}
@@ -269,9 +284,29 @@ class CreateProject extends React.Component {
                                 }
                             </Grid>
                         </Grid>
-
+                        <br />
                     </Grid>
-                    <br />
+
+                    <Grid item xs={12}>
+                        <Typography variant="subtitle1" align='center' style={{ fontWeight: "bold" }}>
+                            {i18n.t('createProject.confidential', { lng })}
+                        </Typography>
+                        <Grid container direction="row" justify='center'>
+                            <Grid item xs={4} md={3} lg={2}>
+                                {i18n.t("createPartner.no", { lng })}
+                                <Switch
+                                    checked={this.state.confidential}
+                                    onChange={this.handleChange}
+                                    name="confidential"
+                                    inputProps={{ 'aria-label': 'secondary checkbox' }}
+                                />
+                                {i18n.t("createPartner.yes", { lng })}
+                            </Grid>
+                        </Grid>
+                        <br />
+                    </Grid>
+
+
 
                     <Grid item>
                         <TextValidator
@@ -285,6 +320,20 @@ class CreateProject extends React.Component {
                             onChange={this.handleChange}
                             fullWidth={true}
                             variant="outlined"
+                            helperText={i18n.t('createProject.descriptionHelper', { lng })}
+                        />
+                    </Grid>
+
+                    <Grid item>
+                        <TextValidator
+                            label={i18n.t('createProject.keywords', { lng })}
+                            value={this.state.keywords}
+                            validators={['maxStringLength:250']}
+                            errorMessages={[i18n.t('field_length.label', { lng })]}
+                            name="keywords"
+                            onChange={this.handleChange}
+                            fullWidth={true}
+                            variant="outlined"
                         />
                     </Grid>
 
@@ -292,7 +341,7 @@ class CreateProject extends React.Component {
                         <TextValidator
                             label={i18n.t('createProject.skills', { lng })}
                             value={this.state.skills}
-                            validators={['maxStringLength:250']}
+                            validators={['maxStringLength:1000']}
                             errorMessages={[i18n.t('field.label', { lng }), i18n.t('field_length.label', { lng })]}
                             name="skills"
                             onChange={this.handleChange}
@@ -306,7 +355,7 @@ class CreateProject extends React.Component {
                         <TextValidator
                             label={i18n.t('createProject.infos', { lng })}
                             value={this.state.infos}
-                            validators={['maxStringLength:250']}
+                            validators={['maxStringLength:1000']}
                             errorMessages={[i18n.t('field.label', { lng }), i18n.t('field_length.label', { lng })]}
                             name="infos"
                             multiline
@@ -317,9 +366,6 @@ class CreateProject extends React.Component {
                         />
                     </Grid>
 
-                    <Grid item>
-                        <KeyWords lng={lng} change={this.handleKeyWords} />
-                    </Grid>
                     <Grid item>
                         <FilesInputs lng={lng} setFiles={this.setFiles} />
                     </Grid>

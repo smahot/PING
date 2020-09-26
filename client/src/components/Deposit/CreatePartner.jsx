@@ -43,6 +43,14 @@ class CreatePartner extends React.Component {
 
     componentDidMount() {
         window.scroll(0, 0);
+
+        ValidatorForm.addValidationRule('isPhone', value => {
+            if(value === "") return true;
+            // eslint-disable-next-line
+            let phoneRegex = /^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\./0-9]*$/
+
+            return phoneRegex.test(value);
+        })
     }
 
     static getDerivedStateFromProps(props, state) {
@@ -80,11 +88,12 @@ class CreatePartner extends React.Component {
                 company: this.state.company,
                 phone: this.state.phone,
                 kind: this.state.kind,
+                address: this.state.address,
                 alreadyPartner: this.state.alreadyPartner === "true",
             };
 
             AuthService.fetch("/api/partner/", {
-                method: "PUT",
+                method: "POST",
                 body: JSON.stringify(data)
             })
                 .then(res => {
@@ -102,21 +111,12 @@ class CreatePartner extends React.Component {
                     }
                 })
                 .catch(err => {
-                    if (err.json)
-                        err.json().then(errData => {
-                            console.error(err);
-                            const { lng } = this.props;
-                            if (errData.name === "EmailUsed") {
-                                this.props.snackbar.notification("error", i18n.t('errors.emailUsed', { lng }), 10000);
-                            } else {
-                                this.props.snackbar.notification("error", i18n.t('errors.createPartner', { lng }), 10000);
-                            }
-                            console.error(errData);
-                        });
-                    else {
-                        const { lng } = this.props;
+                    const { lng } = this.props
+                    console.error(err);
+                    if (err.status === 409)
+                        this.props.snackbar.notification("error", i18n.t('errors.emailUsed', { lng }), 10000);
+                    else
                         this.props.snackbar.notification("error", i18n.t('errors.createPartner', { lng }), 10000);
-                    }
                 });
         }
     }
@@ -152,7 +152,7 @@ class CreatePartner extends React.Component {
                         <TextValidator
                             label={i18n.t('email.label', { lng }) + " *"}
                             placeholder={i18n.t('email.label', { lng })}
-                            validators={['required', 'isEmail', 'maxStringLength:40']}
+                            validators={['required', 'isEmail', 'maxStringLength:254']}
                             errorMessages={[i18n.t('field.label', { lng }), i18n.t('notvalid.label', { lng }), i18n.t('field_length.label', { lng })]}
                             onChange={this.handleChange}
                             name="email"
@@ -203,8 +203,8 @@ class CreatePartner extends React.Component {
 
                     <Grid item>
                         <TextValidator
-                            validators={['maxStringLength:30']}
-                            errorMessages={[i18n.t('field.label', { lng }), i18n.t('field_length.label', { lng })]}
+                            validators={['maxStringLength:15', 'isPhone']}
+                            errorMessages={[i18n.t('field_length.label', { lng }), i18n.t('createPartner.invalidPhone', { lng })]}
                             label={i18n.t('createPartner.phone', { lng })}
                             placeholder={i18n.t('createPartner.phone', { lng })}
                             onChange={this.handleChange} fullWidth={true}
@@ -215,8 +215,8 @@ class CreatePartner extends React.Component {
 
                     <Grid item>
                         <TextValidator
-                            validators={['maxStringLength:100']}
-                            errorMessages={[i18n.t('field.label', { lng }), i18n.t('field_length.label', { lng })]}
+                            validators={['maxStringLength:300']}
+                            errorMessages={[i18n.t('field_length.label', { lng })]}
                             label={i18n.t('createPartner.address', { lng })}
                             placeholder={i18n.t('createPartner.address', { lng })}
                             onChange={this.handleChange} fullWidth={true}

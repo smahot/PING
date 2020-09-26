@@ -19,9 +19,13 @@ import AutoComplete from "components/AutoComplete/AutoComplete.jsx"
 import Button from "components/CustomButtons/Button.jsx";
 
 import AuthService from "components/AuthService";
-import { UserContext } from "../../providers/UserProvider/UserProvider";
+import { hasPermission } from "components/PermissionHandler";
+import { withUser } from "../../providers/UserProvider/UserProvider";
+import { withSnackbar } from "../../providers/SnackbarProvider/SnackbarProvider";
+import { handleXhrError } from "../../components/ErrorHandler"
 
 import { api } from "../../config"
+import { SpecializationProfile as Permissions } from "../../permissions"
 
 const styles = {
     cardCategoryWhite: {
@@ -48,14 +52,17 @@ class SpecializationProfile extends React.Component {
 
         this.state = {
             specialization: {
-                referent: ["", "", "", ""]
+                name: { fr: "", en: "" },
+                description: { fr: "", en: "" }
             },
             loadingProfile: true,
             loadingReferent: true,
             modificated: false,
             specialization_old: {},
             administration: [],
-            selected: null
+            selected: null,
+            canEdit: false,
+            canManageReferents: false
         }
 
         this.handleChange = this.handleChange.bind(this);
@@ -65,67 +72,89 @@ class SpecializationProfile extends React.Component {
         this.addReferent = this.addReferent.bind(this);
     }
 
-    loadData() {
-        AuthService.fetch(api.host + ":" + api.port + "/api/specialization/" + this.props.match.params.id)
-            .then(res => res.json())
-            .then(data => {
-                if (data) {
-                    let spe = {
-                        nameFr: data.name.fr,
-                        nameEn: data.name.en,
-                        descriptionFr: data.description.fr,
-                        descriptionEn: data.description.en,
-                        abbreviation: data.abbreviation,
-                        _id: data._id
-                    }
-
-                    spe.referent = data.referent.map(ref =>
-                        [
-                            ref.last_name,
-                            ref.first_name,
-                            ref.email,
-                            (<div>
-                                <Link to={"/user/" + ref._id}>
-                                    <Button type="button" color="info"><Visibility /> Voir le profil</Button>
-                                </Link>
-                                <Button onClick={this.removeReferent(ref._id)} type="button" color="danger"><Delete />Supprimer</Button>
-                            </div>)
-                        ]
-                    );
-                    this.setState({
-                        specialization: spe,
-                        specialization_old: spe,
-                        loadingProfile: false
-                    });
-                }
-            });
-
-        AuthService.fetch(api.host + ":" + api.port + "/api/user/administration")
-            .then(res => res.json())
-            .then(data => {
-                if (data) {
-                    this.setState({
-                        administration: data,
-                        loadingReferent: false
-                    });
-                }
-            });
+    componentDidMount() {
+        this.setPermissions();
     }
 
-    componentDidMount() {
-        this.loadData();
+    componentWillReceiveProps(nextProps) {
+        this.setPermissions(nextProps);
+    }
+
+    setPermissions(nextProps) {
+        let user = this.props.user.user;
+        if (nextProps) user = nextProps.user.user;
+
+        const canEdit = hasPermission(Permissions.EditSpecialization, user);
+        const canManageReferents = hasPermission(Permissions.ManageReferents, user);
+
+        if (canEdit !== this.state.canEdit || canManageReferents !== this.state.canManageReferents)
+            this.setState({
+                canEdit,
+                canManageReferents
+            }, this.loadData);
+    }
+
+    loadData() {
+        AuthService.fetch(api.host + ":" + api.port + "/api/specialization/" + this.props.match.params.id)
+            .then(res => {
+                if (!res.ok)
+                    throw res;
+                return res.json();
+            })
+            .then(data => {
+                this.setState({
+                    specialization: data,
+                    specialization_old: data,
+                    loadingProfile: false
+                });
+            })
+            .catch(handleXhrError(this.props.snackbar));
+
+        if (this.state.canManageReferents) {
+            AuthService.fetch(api.host + ":" + api.port + "/api/user/administration")
+                .then(res => {
+                    if (!res.ok)
+                        throw res;
+                    return res.json();
+                })
+                .then(data => {
+                    if (data) {
+                        this.setState({
+                            administration: data,
+                            loadingReferent: false
+                        });
+                    }
+                })
+                .catch(handleXhrError(this.props.snackbar));
+        }
     }
 
     handleChange = event => {
         const value = event.target.value;
         const id = event.target.id;
-        this.setState(prevState => ({
-            modificated: true,
-            specialization: {
-                ...prevState.specialization,
-                [id]: value
-            }
-        }));
+
+        if (id.includes('.')) {
+            let ref = id.split('.');
+
+            this.setState(prevState => ({
+                modificated: true,
+                specialization: {
+                    ...prevState.specialization,
+                    [ref[0]]: {
+                        ...prevState.specialization[ref[0]],
+                        [ref[1]]: value
+                    }
+                }
+            }));
+        } else {
+            this.setState(prevState => ({
+                modificated: true,
+                specialization: {
+                    ...prevState.specialization,
+                    [id]: value
+                }
+            }));
+        }
     }
 
     cancel() {
@@ -137,73 +166,61 @@ class SpecializationProfile extends React.Component {
 
     update() {
         let data = {
-            _id: this.state.specialization._id,
+            id: this.state.specialization._id,
             abbreviation: this.state.specialization.abbreviation,
-            nameFr: this.state.specialization.nameFr,
-            nameEn: this.state.specialization.nameEn,
-            descriptionFr: this.state.specialization.descriptionFr,
-            descriptionEn: this.state.specialization.descriptionEn
+            nameFr: this.state.specialization.name.fr,
+            nameEn: this.state.specialization.name.en,
+            descriptionFr: this.state.specialization.description.fr,
+            descriptionEn: this.state.specialization.description.en
         }
 
         AuthService.fetch(api.host + ":" + api.port + "/api/specialization", {
-            method: "POST",
+            method: "PUT",
             mode: "cors",
             headers: {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify(data)
         })
-            .then(res => res.json())
             .then(res => {
-                let spe = {
-                    _id: res._id,
-                    nameFr: res.name.fr,
-                    nameEn: res.name.en,
-                    descriptionFr: res.description.fr,
-                    descriptionEn: res.description.en,
-                    abbreviation: res.abbreviation,
-                    referent: res.referent.map(ref =>
-                        [
-                            ref.last_name,
-                            ref.first_name,
-                            ref.email,
-                            (<div>
-                                <Link to={"/user/" + ref._id}>
-                                    <Button type="button" color="info"><Visibility /> Voir le profil</Button>
-                                </Link>
-                                <Button onClick={this.removeReferent(ref._id)} type="button" color="danger"><Delete />Supprimer</Button>
-                            </div>)
-                        ]
-                    )
+                if (!res.ok)
+                    throw res;
+                else {
+                    this.setState({
+                        specialization_old: this.state.specialization,
+                        modificated: false
+                    });
+                    this.props.snackbar.success("Modification enregistrée.");
                 }
-
-                this.setState({
-                    specialization: spe,
-                    specialization_old: spe,
-                    modificated: false
-                });
-            });
+            })
+            .catch(handleXhrError(this.props.snackbar));
     }
 
     addReferent() {
         if (this.state.selectedItem) {
             const data = {
-                _id: this.props.match.params.id,
-                referent: this.state.selectedItem.value
+                specializationId: this.props.match.params.id,
+                referentId: this.state.selectedItem.value
             };
 
             AuthService.fetch(api.host + ":" + api.port + "/api/specialization/referent", {
                 mode: "cors",
-                method: "PUT",
+                method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify(data)
-            }).then(res => res.json())
+            })
+                .then(res => {
+                    if (!res.ok)
+                        throw res;
+                    return res.json();
+                })
                 .then(data => {
                     this.loadData();
                     this.setState({ selectedItem: "" });
-                });
+                })
+                .catch(handleXhrError(this.props.snackbar));
         }
         else {
             console.error("No selected item");
@@ -212,8 +229,8 @@ class SpecializationProfile extends React.Component {
 
     removeReferent = id => event => {
         const data = {
-            _id: this.props.match.params.id,
-            referent: id
+            specializationId: this.props.match.params.id,
+            referentId: id
         }
 
         AuthService.fetch(api.host + ":" + api.port + "/api/specialization/referent", {
@@ -223,20 +240,24 @@ class SpecializationProfile extends React.Component {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify(data)
-        }).then(res => res.json())
-            .then(data => {
-                this.loadData();
-            });
+        })
+            .then(res => {
+                if (!res.ok)
+                    throw res;
+                else
+                    this.loadData();
+            })
+            .catch(handleXhrError(this.props.snackbar));
     }
 
     render() {
         const { classes } = this.props;
 
-        let profile = () => { };
+        let profile;
         let referent;
         let suggestions;
         if (!this.state.loadingProfile) {
-            profile = user => (
+            profile = (
                 <GridContainer>
                     <GridItem xs={12} sm={12} md={12}>
                         <Card>
@@ -254,7 +275,7 @@ class SpecializationProfile extends React.Component {
                                                 fullWidth: true
                                             }}
                                             inputProps={{
-                                                disabled: !user.admin,
+                                                disabled: !this.state.canEdit,
                                                 onChange: this.handleChange,
                                                 value: this.state.specialization.abbreviation
                                             }}
@@ -265,66 +286,66 @@ class SpecializationProfile extends React.Component {
                                     <GridItem xs={12} sm={12} md={6}>
                                         <CustomInput
                                             labelText="Nom (fr)"
-                                            id="nameFr"
+                                            id="name.fr"
                                             formControlProps={{
                                                 fullWidth: true
                                             }}
                                             inputProps={{
-                                                disabled: !user.admin,
+                                                disabled: !this.state.canEdit,
                                                 onChange: this.handleChange,
-                                                value: this.state.specialization.nameFr
+                                                value: this.state.specialization.name.fr
                                             }}
                                         />
                                     </GridItem>
                                     <GridItem xs={12} sm={12} md={6}>
                                         <CustomInput
                                             labelText="Nom (en)"
-                                            id="nameEn"
+                                            id="name.en"
                                             formControlProps={{
                                                 fullWidth: true
                                             }}
                                             inputProps={{
-                                                disabled: !user.admin,
+                                                disabled: !this.state.canEdit,
                                                 onChange: this.handleChange,
-                                                value: this.state.specialization.nameEn
+                                                value: this.state.specialization.name.en
                                             }}
                                         />
                                     </GridItem>
                                 </GridContainer>
-                                
+
                                 <GridContainer>
                                     <GridItem xs={12} sm={12} md={6}>
                                         <CustomInput
                                             labelText="Description (fr)"
-                                            id="descriptionFr"
+                                            id="description.fr"
                                             formControlProps={{
                                                 fullWidth: true
                                             }}
                                             inputProps={{
-                                                disabled: !user.admin,
+                                                disabled: !this.state.canEdit,
                                                 onChange: this.handleChange,
-                                                value: this.state.specialization.descriptionFr
+                                                value: this.state.specialization.description.fr
                                             }}
                                         />
                                     </GridItem>
                                     <GridItem xs={12} sm={12} md={6}>
                                         <CustomInput
                                             labelText="Description (en)"
-                                            id="descriptionEn"
+                                            id="description.en"
                                             formControlProps={{
                                                 fullWidth: true
                                             }}
                                             inputProps={{
-                                                disabled: !user.admin,
+                                                disabled: !this.state.canEdit,
                                                 onChange: this.handleChange,
-                                                value: this.state.specialization.descriptionEn
+                                                value: this.state.specialization.description.en
                                             }}
                                         />
                                     </GridItem>
                                 </GridContainer>
                             </CardBody>
                             {
-                                user.admin &&
+                                this.state.canEdit &&
                                 <CardFooter>
                                     <GridContainer >
                                         <GridItem xs={12} sm={12} md={12}>
@@ -336,7 +357,8 @@ class SpecializationProfile extends React.Component {
                             }
                         </Card>
                     </GridItem>
-                </GridContainer>);
+                </GridContainer>
+            );
         }
         if (!this.state.loadingReferent && !this.state.loadingProfile) {
             suggestions = this.state.administration.map(admin => ({
@@ -358,7 +380,21 @@ class SpecializationProfile extends React.Component {
                                         <Table
                                             tableHeaderColor="primary"
                                             tableHead={["Nom", "Prénom", "Email", "Actions"]}
-                                            tableData={this.state.specialization.referent}
+                                            tableData={
+                                                this.state.specialization.referent.map(ref =>
+                                                    [
+                                                        ref.last_name,
+                                                        ref.first_name,
+                                                        ref.email,
+                                                        (<div>
+                                                            <Link to={"/user/" + ref._id}>
+                                                                <Button type="button" color="info"><Visibility /> Voir le profil</Button>
+                                                            </Link>
+                                                            <Button onClick={this.removeReferent(ref._id)} type="button" color="danger"><Delete />Supprimer</Button>
+                                                        </div>)
+                                                    ]
+                                                )
+                                            }
                                         />
                                     </GridItem>
                                 </GridContainer>
@@ -398,16 +434,12 @@ class SpecializationProfile extends React.Component {
             );
         }
         return (
-            <UserContext.Consumer>
-                {value =>
-                    <div>
-                        {profile(value.user)}
-                        {value.user.admin && referent}
-                    </div>
-                }
-            </UserContext.Consumer>
+            <div>
+                {profile}
+                {this.state.canManageReferents && referent}
+            </div>
         );
     }
 }
 
-export default withStyles(styles)(SpecializationProfile);
+export default withUser(withSnackbar(withStyles(styles)(SpecializationProfile)));

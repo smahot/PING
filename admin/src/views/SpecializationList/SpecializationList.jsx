@@ -17,9 +17,14 @@ import CardBody from "components/Card/CardBody.jsx";
 import Button from "components/CustomButtons/Button.jsx";
 import Modal from "components/Modal/Modal.jsx";
 
-import { api } from "config.json"
-import { withUser } from "../../providers/UserProvider/UserProvider"
 import AuthService from "../../components/AuthService";
+import { hasPermission } from "components/PermissionHandler";
+import { withUser } from "../../providers/UserProvider/UserProvider"
+import { withSnackbar } from "../../providers/SnackbarProvider/SnackbarProvider";
+import { handleXhrError } from "../../components/ErrorHandler";
+
+import { SpecializationList as Permissions } from "../../permissions"
+import { api } from "config.json"
 
 const styles = {
     cardCategoryWhite: {
@@ -59,7 +64,8 @@ class SpecializationList extends React.Component {
             loading: true,
             specializations: [],
             open: false,
-            _id: ""
+            _id: "",
+            canDeleteSpecialization: hasPermission(Permissions.DeleteSpecialization, props.user.user)
         };
     }
 
@@ -67,9 +73,22 @@ class SpecializationList extends React.Component {
         this.loadData();
     }
 
+    componentWillReceiveProps(nextProps) {
+        const canDeleteSpecialization = hasPermission(Permissions.DeleteSpecialization, nextProps.user.user);
+
+        if (canDeleteSpecialization !== this.state.canDeleteSpecialization)
+            this.setState({
+                canDeleteSpecialization,
+            }, this.loadData);
+    }
+
     loadData = () => {
-        fetch(api.host + ":" + api.port + "/api/specialization", { crossDomain: true })
-            .then(res => res.json())
+        fetch(api.host + ":" + api.port + "/api/specialization")
+            .then(res => {
+                if (!res.ok)
+                    throw res;
+                return res.json();
+            })
             .then(data => {
                 let specializationsData = data.map(specialization => [
                     specialization.abbreviation,
@@ -82,7 +101,7 @@ class SpecializationList extends React.Component {
                                     <Visibility /> Voir la majeure
                         </Button>
                             </Link>
-                            {this.props.user.user.admin &&
+                            {this.state.canDeleteSpecialization &&
                                 <Button size="sm" type="button" color="danger" onClick={this.showModal(specialization._id)}>
                                     <Delete /> Supprimer la majeure
                         </Button>
@@ -92,7 +111,8 @@ class SpecializationList extends React.Component {
                 ]);
 
                 this.setState({ specializations: specializationsData, loading: false });
-            });
+            })
+            .catch(handleXhrError(this.props.snackbar));
     }
 
     showModal = _id => () => {
@@ -105,7 +125,7 @@ class SpecializationList extends React.Component {
 
     deleteSpe = () => {
         const data = {
-            _id: this.state._id
+            id: this.state._id
         };
 
         AuthService.fetch(api.host + ":" + api.port + "/api/specialization",
@@ -113,11 +133,16 @@ class SpecializationList extends React.Component {
                 method: "DELETE",
                 body: JSON.stringify(data)
             })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok)
+                    throw res;
+                return res.json();
+            })
             .then(data => {
                 this.closeModal();
                 this.loadData();
-            }).catch(console.error);
+            })
+            .catch(handleXhrError(this.props.snackbar));
     }
 
     render() {
@@ -133,9 +158,9 @@ class SpecializationList extends React.Component {
                         closeModal={this.closeModal}
                         title="Supprimer cette majeure ?"
                         content={(<div>Etes vous sûr de vouloir supprimer cette majeure ?
-                    <br />
+                            <br />
                             Toute suppression est définitive et aucun retour en arrière n'est possible.
-                    </div>)}
+                        </div>)}
                         buttonColor="danger"
                         buttonContent="Supprimer"
                         validation={this.deleteSpe}
@@ -166,4 +191,4 @@ class SpecializationList extends React.Component {
     }
 }
 
-export default withUser(withStyles(styles)(SpecializationList));
+export default withSnackbar(withUser(withStyles(styles)(SpecializationList)));

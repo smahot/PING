@@ -11,7 +11,7 @@ i18next
 				translation: {
 					deposit: { label: "Deposit project" },
 					year: { label: 'Year', },
-					partner: { label: 'Proposed by', },
+					partner: { label: 'Submit date', },
 					firm: { label: 'Company' },
 					title: { label: 'Project\'s title' },
 					keywords: { label: 'Keywords', },
@@ -59,7 +59,7 @@ i18next
 					keyword: { label: 'Keywords (Press Enter between each keywords !)', },
 					files: { label: 'Others Files', },
 					dropfiles: { label: 'If needed, drop files here', },
-					acceptedfiles: { label: 'Accepted files : png , pdf , csv ...', },
+					acceptedfiles: { label: 'Accepted files : jpeg, png, pdf', },
 					pdf: { label: 'Export as PDF', },
 					click: { label: ' Click here', },
 					example: { label: 'to reset the example.', },
@@ -88,26 +88,42 @@ i18next
 						no: "No",
 						created: "Your account has been successfuly created. An email has been sent.",
 						isExisting: "You are already logged in. Clic on next to submit your project",
+						invalidPhone: "Invalid phone number"
 					},
 					errors: {
 						emailUsed: "This email has already been used to create an account. Connect to your account before submitting a new project",
 						createPartner: "An error happened while trying to create your account. Please retry.",
 						createProject: "An error happened while trying to create your project. Please retry.",
 						NaN: "Please input a number",
-						fillAll: "Please fill all required fields",
+						fillAll: "Please fill correctly all required fields",
 						partnerNotFound: "No user found with that email",
-						default: "Something wrong happened. Please retry",
+						default: "Something wrong happened. Please retry later",
+						unauthorized: "Action denied. Please ensure that you are correctly logged in.",
+						invalidFile: "Please only deposit PDF, jpeg or png file",
+						fillTitle: "Please fill the title field",
+						fillYear: "Please select at least one year concerned by that project",
+						fillSpecialization: "Please select at least one specialiaztion concerned by that project",
+						fillDescription: "Please fill the description field"
 					},
 					createProject: {
 						skills: "Skills developped",
 						infos: "Further informations",
 						multipleTeams: "Do you accept that several teams work if the project ?",
-						maxNumber: "If so, how many teams do you accept ?"
+						maxNumber: "If so, how many teams do you accept ?",
+						RandD: "Is it a research and development project ?",
+						confidential: "Is your project confidential ?",
+						keywords: "Keywords describing the project",
+						descriptionHelper: `Indicate, if possible, in particular the following elements:
+						context (project stakeholders),
+						prerequisites that may be necessary (e.g. required skills, knowledge in the use of software, etc.),
+						project objectives,
+						possible constraints,
+						 "deliverables" expected at the end of the project`
 					},
 					home: {
 						title: 'Industrial Innovation Projects',
 						title_p1: 'You are a company, a laboratory, a student? You want to test an idea, create a prototype, decipher and / or explore a field of innovation, ...?',
-						title_p2: 'Discover <a href="https://www.esilv.fr/portfoliosets/projet-innovation-industrielle-4/">4th year\'s projects</a> and <a href="https://www.esilv.fr/portfoliosets/projet-innovation-industrielle-5/">5th year\'s projects</a>',						
+						title_p2: 'Discover <a target="_blank" href="https://www.esilv.fr/portfoliosets/projet-innovation-industrielle-4/">4th year\'s projects</a> and <a target="_blank" href="https://www.esilv.fr/portfoliosets/projet-innovation-industrielle-5/">5th year\'s projects</a>',
 						p1: 'Submit a project to our students!',
 						p1_l1: 'Proposing a project will allow you to cooperate with a team of motivated and innovative engineering students and to contribute to their training by involving them in current issues.',
 						p1_l2: 'Companies or laboratories, it is also a way to make yourself known to those who will respond in the coming years to your internship and job offers.',
@@ -170,7 +186,7 @@ i18next
 				translation: {
 					deposit: { label: "Deposer le projet" },
 					year: { label: 'Année', },
-					partner: { label: 'Proposé par', },
+					partner: { label: 'Proposé le', },
 					firm: { label: 'Entreprise' },
 					title: { label: 'Titre du projet' },
 					keywords: { label: 'Mots-clés', },
@@ -218,7 +234,7 @@ i18next
 					keyword: { label: 'Mots clés (appuyez sur Entrée entre chaque mot clefs ! )', },
 					files: { label: 'Autres Fichiers ', },
 					dropfiles: { label: 'Déposez ici les fichiers pouvant renseigner sur votre projet si besoin' },
-					acceptedfiles: { label: 'Types de fichiers acceptés : png , pdf , csv ...', },
+					acceptedfiles: { label: 'Types de fichiers acceptés : jpeg, png, pdf', },
 					pdf: { label: 'Exporter en PDF', },
 					click: { label: ' Cliquez ici', },
 					example: { label: 'pour réinitialiser l\'exemple.', },
@@ -239,7 +255,7 @@ i18next
 						submit: 'Envoyer',
 						desc: 'Lors de la soumission de votre premier projet, un mail vous a été envoyé avec le lien de connexion.\nS\'il n\'est pas dans votre boite de spam, nous pouvons vous le renvoyer. Il suffit de remplir votre adresse mail ci-dessous.',
 						textfield: "Votre adresse mail",
-						mailSent:"Un mail vous a été envoyé avec votre nouveau lien de connexion"
+						mailSent: "Un mail vous a été envoyé avec votre nouveau lien de connexion"
 					},
 					createPartner: {
 						phone: 'Numéro de téléphone',
@@ -252,28 +268,44 @@ i18next
 						alreadyPartner: "Avez-vous déjà proposé un projet à l'ESILV ?",
 						yes: "Oui",
 						no: "Non",
-						created: "Votre compte a bien été créer. Un mail vous a été envoyé.",
+						created: "Votre compte a bien été créé. Un mail vous a été envoyé.",
 						isExisting: "Vous êtes déjà connecté. Cliquez sur suivant pour déposer votre projet",
+						invalidPhone: "Numéro de téléphone invalide"
 					},
 					createProject: {
 						skills: "Compétences développées",
 						infos: "Informations complémentaires",
 						multipleTeams: "Acceptez vous que plusieurs équipes travaillent sur le projet ?",
-						maxNumber: "Dans ce cas combien d'équipes maximum acceptez-vous ?"
+						maxNumber: "Dans ce cas combien d'équipes maximum acceptez-vous ?",
+						RandD: "Est-ce un projet de recherche et développement ?",
+						keywords: "Mots-clefs décrivant le projet",
+						confidential: "Votre projet est-il confidentiel ?",
+						descriptionHelper: `Indiquer, si possible ,  en particulier les éléments suivants :
+						contexte (parties prenantes au projet),
+						prérequis éventuellement nécessaires (ex : compétences requises , connaissances dans l’utilisation de logiciels…),
+						objectifs du projet,
+						contraintes éventuelles,
+						 « livrables »  attendus à la fin du projet`
 					},
 					errors: {
 						emailUsed: "Cette adresse mail à déjà été utilisé pour créer un compte. Connectez vous avec le lien reçu par mail pour déposer un nouveau projet",
 						createPartner: "Une erreur est survenue lors de la création de votre compte. Merci de réessayer.",
 						createProject: "Une erreur est survenue lors de la création de votre projet. Merci de réessayer.",
 						NaN: "Merci de saisir un nombre",
-						fillAll: "Merci de remplir tous les champs obligatoires",
+						fillAll: "Merci de remplir correctement tous les champs obligatoires",
 						partnerNotFound: "Aucun utilisateur trouvé avec cette adresse mail",
 						default: "Une erreur est survenue. Merci de réessayer",
+						unauthorized: "Action refusée. Assurez vous d'être correctement connecté.",
+						invalidFile: "Merci de déposer uniquement des PDF, des jpeg ou des png",
+						fillTitle: "Merci de remplir le champ titre du projet",
+						fillYear: "Merci de sélectionner au moins une année concernée par ce projet",
+						fillSpecialization: "Merci de sélectionner au moins une majeure concernée par ce projet",
+						fillDescription: "Merci de remplir le champ description du projet"
 					},
 					home: {
 						title: 'Projets Innovation Industrielle',
 						title_p1: 'Vous êtes une entreprise, un laboratoire, un étudiant ? Vous souhaitez tester une idée, créer un prototype, déchiffrer et/ou explorer un terrain d\'innovation, ... ?',
-						title_p2: 'Découvrir les projets de <a href="https://www.esilv.fr/portfoliosets/projet-innovation-industrielle-4/">4eme année</a> et de <a href="https://www.esilv.fr/portfoliosets/projet-innovation-industrielle-5/">5eme année</a>',						
+						title_p2: 'Découvrir les projets de <a target="_blank" href="https://www.esilv.fr/portfoliosets/projet-innovation-industrielle-4/">4eme année</a> et de <a target="_blank" href="https://www.esilv.fr/portfoliosets/projet-innovation-industrielle-5/">5eme année</a>',
 						p1: 'Proposez un projet à nos élèves !',
 						p1_l1: 'Proposer un projet vous permettra de coopérer avec une équipe d\'élèves ingénieurs motivés et innovants et de contribuer à leur formation en les impliquant dans des problématiques actuelles.',
 						p1_l2: 'Entreprises ou laboratoires, c\'est aussi un moyen de vous faire connaître auprès de ceux qui répondront dans les années futures à vos offres de stages et d\'emplois.',

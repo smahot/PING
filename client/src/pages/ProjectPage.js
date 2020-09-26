@@ -13,6 +13,7 @@ import { withStyles } from '@material-ui/core/styles';
 import VerticalAlignBottom from '@material-ui/icons/VerticalAlignBottom';
 
 import AuthService from '../components/AuthService';
+import { withSnackbar } from "../providers/SnackbarProvider/SnackbarProvider";
 import { api } from "../config";
 
 const styles = {
@@ -21,26 +22,46 @@ const styles = {
 class ProjectPage extends React.Component {
     constructor(props) {
         super(props);
+        let project = {};
+
+        if (this.props.location.state)
+            project = this.props.location.state.project
+
+        console.log(Object.keys(project).length);
+
         this.state = {
-            project: this.props.project,
-            loaded: false,
+            project: project,
+            loaded: Object.keys(project).length > 0 ? true : false,
             isLiked: false,
         }
     }
 
     componentDidMount() {
-        AuthService.fetch('/api/project/' + this.props.match.params.key)
-            .then(res => res.json())
-            .then(project => {
+        if (!this.state.loaded) {
+            AuthService.fetch('/api/project/' + this.props.match.params.key)
+                .then(res => {
+                    if (res.ok)
+                        return res.json()
+                    else
+                        throw res
+                })
+                .then(project => {
 
-                this.setState({ project: project, loaded: true });
-                if (project.likes.find((element) => { return element === this.state.userId; })) {
-                    this.setState({ isLiked: true });
-                }
-                else {
-                    this.setState({ isLiked: false });
-                }
-            });
+                    this.setState({ project: project, loaded: true });
+                    if (project.likes.find((element) => { return element === this.state.userId; })) {
+                        this.setState({ isLiked: true });
+                    }
+                    else {
+                        this.setState({ isLiked: false });
+                    }
+                })
+                .catch(err => {
+                    console.error(err)
+                    if (err.status)
+                        this.props.snackbar.notification("danger", i18n.t("errors.unauthorized", { lng: this.props.lng }));
+
+                });
+        }
     }
 
     handleChange = () => {
@@ -68,6 +89,8 @@ class ProjectPage extends React.Component {
                 }
             });
     }
+
+    downloadFile = fileId => api.host + ":" + api.port + "/api/project/file/" + fileId + "?token=" + AuthService.getToken()
 
     render() {
         const project = this.state.project
@@ -101,22 +124,13 @@ class ProjectPage extends React.Component {
                                                     key={spe._id}
                                                     label={spe.specialization.abbreviation}
                                                     color="secondary"
-                                                    style={{ marginRight: "5px"}}
+                                                    style={{ marginRight: "5px" }}
                                                 />)
-                                        }
-                                        {
-                                            project.keywords.sort().map(keyword => {
-                                                return <Chip
-                                                    key={keyword}
-                                                    label={keyword}
-                                                    style={{ marginRight: "5px"}}
-                                                />
-                                            })
                                         }
                                     </Grid>
                                     <Grid item xs={12}>
                                         <Typography variant="subtitle1">
-                                            {i18n.t('partner.label', { lng })} : {project.partner.company}, {new Date(project.edit_date).toLocaleDateString()}
+                                            {i18n.t('partner.label', { lng })} {new Date(project.submissionDate).toLocaleDateString()}
                                         </Typography>
 
                                         {/*<Tooltip title="Like">
@@ -128,7 +142,7 @@ class ProjectPage extends React.Component {
                                     </Grid>
                                 </Grid>
                                 <Grid container>
-                                    <Grid item xs={0} md={1} lg={2}></Grid>
+                                    <Grid item md={1} lg={2}></Grid>
                                     <Grid item xs={12} md={10} lg={8}>
                                         <hr></hr>
                                         <Typography align="justify">
@@ -171,7 +185,7 @@ class ProjectPage extends React.Component {
                                                     <Typography style={{ wordBreak: "break-word" }}>
                                                         {file.originalName}
                                                     </Typography>
-                                                    <IconButton href={api.host + ":" + api.port + "/api/project/file/" + file._id}>
+                                                    <IconButton href={this.downloadFile(file._id)}>
                                                         <VerticalAlignBottom />
                                                     </IconButton>
                                                 </Grid>
@@ -191,4 +205,4 @@ class ProjectPage extends React.Component {
     }
 }
 
-export default withStyles(styles)(ProjectPage);
+export default withSnackbar(withStyles(styles)(ProjectPage));

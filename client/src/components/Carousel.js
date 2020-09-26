@@ -3,11 +3,8 @@ import PropTypes from 'prop-types';
 import { withStyles } from '@material-ui/core/styles';
 import Paper from '@material-ui/core/Paper';
 import Grid from '@material-ui/core/Grid';
-import SwipeableViews from 'react-swipeable-views';
-import { autoPlay } from 'react-swipeable-views-utils';
 import i18n from '../components/i18n';
 
-const AutoPlaySwipeableViews = autoPlay(SwipeableViews);
 
 const styles = theme => ({
 	header: {
@@ -120,30 +117,34 @@ class Carousel extends React.Component {
 			imgPath: './pictures/Visuel_PA4_18_78.jpg',
 			link: 'https://www.esilv.fr/portfoliosets/projet-innovation-industrielle-4/'
 		}];
-		
+
 		this.state = {
 			actualStep: Math.round(Math.random() * (this.tutorialSteps.length - 1)),
 		};
 	}
 
+	componentWillMount() {
+		this.timer = setInterval(() => {
+			this.setState({ actualStep: Math.round(Math.random() * (this.tutorialSteps.length - 1)) })
+		}, 1500);
+	}
+
+	componentWillUnmount() {
+		clearInterval(this.timer);
+	}
 
 	render() {
 		const { classes } = this.props;
-		const { actualStep } = this.state;
 		let lng = this.props.lng;
-
-		setTimeout(() => {
-			this.setState({ actualStep: Math.round(Math.random() * (this.tutorialSteps.length - 1)) })
-		}, 1500);
-
+		
 		return (
 			<Grid container className={classes.root}>
 				<Grid item xs={12}>
-					<Paper square elevation={0} className={classes.header} onClick={() => window.open(this.tutorialSteps[this.state.actualStep].link, "_blank")} >
+					<Paper square elevation={0} className={classes.header} >
 						<a dangerouslySetInnerHTML={{ __html: i18n.t('home.title_p2', { lng }) }}></a>
 					</Paper>
 				</Grid>
-				<Grid item xs={12}>
+				<Grid item xs={12} onClick={() => window.open(this.tutorialSteps[this.state.actualStep].link, "_blank")} >
 					<img className={classes.img} src={this.tutorialSteps[this.state.actualStep].imgPath} alt={"Projet ESILV"} />
 				</Grid>
 			</Grid>

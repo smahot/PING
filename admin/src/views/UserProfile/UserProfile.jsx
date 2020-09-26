@@ -19,14 +19,17 @@ import Button from "components/CustomButtons/Button.jsx";
 import Card from "components/Card/Card.jsx";
 import CardHeader from "components/Card/CardHeader.jsx";
 import CardBody from "components/Card/CardBody.jsx";
-import Snackbar from "components/Snackbar/Snackbar.jsx";
 import CardFooter from "components/Card/CardFooter.jsx";
 import ChangePassword from "components/ChangePassword/ChangePassword.jsx";
 import Table from "components/Table/Table.jsx";
 
 import AuthService from "components/AuthService"
 import { withUser } from "../../providers/UserProvider/UserProvider"
+import { withSnackbar } from "../../providers/SnackbarProvider/SnackbarProvider"
 import { api } from "../../config"
+import { handleXhrError } from "../../components/ErrorHandler"
+import { hasPermission } from "components/PermissionHandler";
+import { UserProfile as Permissions } from "../../permissions"
 
 const styles = {
 	cardCategoryWhite: {
@@ -58,20 +61,34 @@ class UserProfile extends React.Component {
 			adminCheckboxDisabled: false,
 			EPGECheckboxDisabled: false,
 			modified: false,
-			error: false,
-			success: false,
-			message: ""
+			canEditUser: hasPermission(Permissions.EditUser, props.user.user),
+			canChangePassword: hasPermission(Permissions.ChangePassword, props.user.user)
 		}
+
+		console.log(Permissions, this.state)
 
 		this.update = this.update.bind(this);
 		this.cancel = this.cancel.bind(this);
-		this.error = this.error.bind(this);
-		this.success = this.success.bind(this);
+	}
+
+	componentWillReceiveProps(nextProps) {
+		const canChangePassword = hasPermission(Permissions.ChangePassword, nextProps.user.user);
+		const canEditUser = hasPermission(Permissions.EditUser, nextProps.user.user);
+
+		if (canChangePassword !== this.state.canChangePassword || canEditUser !== this.state.canEditUser)
+			this.setState({
+				canChangePassword,
+				canEditUser
+			});
 	}
 
 	componentDidMount() {
-		fetch(api.host + ":" + api.port + "/api/user/" + this.props.match.params.id)
-			.then(res => res.json())
+		AuthService.fetch(api.host + ":" + api.port + "/api/user/" + this.props.match.params.id)
+			.then(res => {
+				if (!res.ok)
+					throw res;
+				return res.json();
+			})
 			.then(data => {
 				if (data) {
 					this.setState({
@@ -81,7 +98,8 @@ class UserProfile extends React.Component {
 						inputDisabled: true
 					});
 				}
-			});
+			})
+			.catch(handleXhrError(this.props.snackbar));
 	}
 
 	handleChange = e => {
@@ -105,16 +123,21 @@ class UserProfile extends React.Component {
 
 	update() {
 		let data = {
-			_id: this.state.user._id,
+			id: this.state.user._id,
 			company: this.state.user.company,
-			firstName: this.state.user.first_name,
-			lastName: this.state.user.last_name,
+			first_name: this.state.user.first_name,
+			last_name: this.state.user.last_name,
 			email: this.state.user.email,
-			__t: this.state.user.__t
+			phone: this.state.user.phone,
+			address: this.state.user.address,
 		}
 
-		AuthService.fetch(api.host + ":" + api.port + "/api/user", {
-			method: "POST",
+		let url = api.host + ":" + api.port + "/api/user";
+		if (this.state.user.__t === "Partner")
+			url = api.host + ":" + api.port + "/api/partner"
+
+		AuthService.fetch(url, {
+			method: "PUT",
 			mode: "cors",
 			headers: {
 				"Content-Type": "application/json",
@@ -128,23 +151,20 @@ class UserProfile extends React.Component {
 			})
 			.then(res => {
 				this.setState({
-					user: res,
-					user_old: res,
+					user_old: this.state.user,
 					modified: false
 				});
 
-				this.success("Utilisateur mis à jour avec succès");
+				this.props.snackbar.success("Utilisateur mis à jour avec succès");
 			})
-			.catch(err => {
-				console.error(err);
-			});
+			.catch(handleXhrError(this.props.snackbar));
 	}
 
 	handleCheckboxChange = name => event => {
 		const checked = event.target.checked;
 
 		let data = {
-			_id: this.state.user._id
+			id: this.state.user._id
 		};
 		if (name === "admin") {
 			data.admin = checked;
@@ -156,15 +176,25 @@ class UserProfile extends React.Component {
 		}
 
 
-		fetch(api.host + ':' + api.port + "/api/user", {
-			method: "POST",
+		AuthService.fetch(api.host + ':' + api.port + "/api/user", {
+			method: "PUT",
 			mode: "cors",
 			headers: {
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify(data)
 		})
-			.then(res => res.json())
+			.then(res => {
+				if (!res.ok)
+					throw res;
+				else {
+					if (name === "admin")
+						this.setState({ user: { ...this.state.user, admin: data.admin } })
+					else if (name === "epge")
+						this.setState({ user: { ...this.state.user, EPGE: data.EPGE } })
+
+				}
+			})
 			.then(result => {
 				if (result)
 					this.setState({ user: result });
@@ -173,59 +203,67 @@ class UserProfile extends React.Component {
 				else if (name === "epge")
 					this.setState({ EPGECheckboxDisabled: false });
 			})
-			.catch(err => console.err(err));
+			.catch(handleXhrError(this.props.snackbar));
 	};
-
-	error = msg => {
-		this.setState({
-			error: true,
-			message: msg
-		}, () => {
-			setTimeout(() => {
-				this.setState({ error: false });
-			}, 3000);
-		});
-	}
-
-	success = msg => {
-		this.setState({
-			success: true,
-			message: msg
-		}, () => {
-			setTimeout(() => {
-				this.setState({ success: false });
-			}, 3000);
-		});
-	}
 
 	render() {
 		const { classes } = this.props;
-		const { user } = this.state;
+		const { user, user_old } = this.state;
 
 		if (!this.state.loading) {
-			const title = (user.company ? "[" + user.company.toUpperCase() + "] - " : "") + user.last_name.toUpperCase() + " " + user.first_name
+			const title = (user_old.company ? "[" + user_old.company.toUpperCase() + "] - " : "") + user_old.last_name.toUpperCase() + " " + user_old.first_name
 
-			let company;
+			let company, phone, address;
 			let administration;
 
 			if (user.__t === "Partner") {
 				company = (
-					<GridContainer>
-						<GridItem xs={12} sm={12} md={4}>
-							<CustomInput
-								labelText="Entreprise"
-								id="company"
-								formControlProps={{
-									fullWidth: true
-								}}
-								inputProps={{
-									value: user.company,
-									onChange: this.handleChange,
-									disabled: !this.props.user.user.admin
-								}}
-							/>
-						</GridItem>
-					</GridContainer>);
+					<GridItem xs={12} sm={12} md={6}>
+						<CustomInput
+							labelText="Entreprise"
+							id="company"
+							formControlProps={{
+								fullWidth: true
+							}}
+							inputProps={{
+								value: user.company,
+								onChange: this.handleChange,
+								disabled: !this.state.canEditUser
+							}}
+						/>
+					</GridItem>);
+
+				phone = (
+					<GridItem xs={12} sm={12} md={6}>
+						<CustomInput
+							labelText="Numéro de téléphone"
+							id="phone"
+							formControlProps={{
+								fullWidth: true
+							}}
+							inputProps={{
+								value: user.phone,
+								onChange: this.handleChange,
+								disabled: !this.state.canEditUser
+							}}
+						/>
+					</GridItem>);
+
+				address = (
+					<GridItem xs={12} sm={12} md={6}>
+						<CustomInput
+							labelText="Adresse"
+							id="address"
+							formControlProps={{
+								fullWidth: true
+							}}
+							inputProps={{
+								value: user.address,
+								onChange: this.handleChange,
+								disabled: !this.state.canEditUser
+							}}
+						/>
+					</GridItem>);
 			}
 
 			if (user.__t === "Administration") {
@@ -236,7 +274,7 @@ class UserProfile extends React.Component {
 								<FormControlLabel
 									control={
 										<Checkbox
-											disabled={this.state.adminCheckboxDisabled || !this.props.user.user.admin}
+											disabled={this.state.adminCheckboxDisabled || !this.state.canEditUser}
 											onChange={this.handleCheckboxChange('admin')}
 											checked={user.admin}
 											value="admin"
@@ -252,7 +290,7 @@ class UserProfile extends React.Component {
 								<FormControlLabel
 									control={
 										<Checkbox
-											disabled={this.state.EPGECheckboxDisabled || !this.props.user.user.admin}
+											disabled={this.state.EPGECheckboxDisabled || !this.state.canEditUser}
 											onChange={this.handleCheckboxChange('epge')}
 											checked={user.EPGE}
 											value="epge"
@@ -269,22 +307,6 @@ class UserProfile extends React.Component {
 
 			return (
 				<div>
-					<Snackbar
-						place="tc"
-						color="success"
-						message={this.state.message}
-						open={this.state.success}
-						closeNotification={() => this.setState({ success: false })}
-						close
-					/>
-					<Snackbar
-						place="tc"
-						color="danger"
-						message={this.state.message}
-						open={this.state.error}
-						closeNotification={() => this.setState({ error: false })}
-						close
-					/>
 					<GridContainer>
 						<GridItem xs={12} sm={12} md={12}>
 							<Card>
@@ -294,7 +316,7 @@ class UserProfile extends React.Component {
 								</CardHeader>
 								<CardBody>
 									<GridContainer>
-										<GridItem xs={12} sm={12} md={4}>
+										<GridItem xs={12} sm={12} md={6}>
 											<CustomInput
 												labelText="Type"
 												id="Type"
@@ -303,12 +325,13 @@ class UserProfile extends React.Component {
 												}}
 												inputProps={{
 													value: user.__t,
-													disabled: this.state.inputDisabled
+													disabled: true
 												}}
 											/>
 										</GridItem>
+										{company}
+										{address}
 									</GridContainer>
-									{company}
 									<GridContainer>
 										<GridItem xs={12} sm={12} md={6}>
 											<CustomInput
@@ -320,13 +343,13 @@ class UserProfile extends React.Component {
 												inputProps={{
 													value: user.first_name,
 													onChange: this.handleChange,
-													disabled: !this.props.user.user.admin
+													disabled: !this.state.canEditUser
 												}}
 											/>
 										</GridItem>
 										<GridItem xs={12} sm={12} md={6}>
 											<CustomInput
-												labelText="Last Name"
+												labelText="Nom"
 												id="last_name"
 												formControlProps={{
 													fullWidth: true
@@ -334,13 +357,13 @@ class UserProfile extends React.Component {
 												inputProps={{
 													value: user.last_name,
 													onChange: this.handleChange,
-													disabled: !this.props.user.user.admin
+													disabled: !this.state.canEditUser
 												}}
 											/>
 										</GridItem>
 									</GridContainer>
 									<GridContainer>
-										<GridItem xs={12} sm={12} md={12}>
+										<GridItem xs={12} sm={12} md={6}>
 											<CustomInput
 												labelText="Email"
 												id="email"
@@ -353,6 +376,7 @@ class UserProfile extends React.Component {
 												}}
 											/>
 										</GridItem>
+										{phone}
 									</GridContainer>
 									{administration}
 								</CardBody>
@@ -388,7 +412,9 @@ class UserProfile extends React.Component {
 						</GridItem>
 
 						<GridItem xs={12}>
-							<ChangePassword user={this.state.user} errorHandler={this.error} successHandler={this.success}></ChangePassword>
+							{this.state.canChangePassword &&
+								<ChangePassword user={this.state.user} errorHandler={this.props.snackbar.error} successHandler={this.props.snackbar.success}></ChangePassword>
+							}
 						</GridItem>
 					</GridContainer>
 				</div>
@@ -400,4 +426,4 @@ class UserProfile extends React.Component {
 	}
 }
 
-export default withUser(withStyles(styles)(UserProfile));
+export default withSnackbar(withUser(withStyles(styles)(UserProfile)));

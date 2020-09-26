@@ -1,0 +1,99 @@
+{
+    "Dashboard": {
+        "value": ""
+    },
+    "ProjectList": {
+        "value": "",
+        "DownloadPdf": "EGPE",
+        "DownloadCsv": "EGPE",
+        "DownloadZip": "EGPE",
+        "SeeConfidential": [
+            "EGPE",
+            "Referent"
+        ]
+    },
+    "ProjectProfile": {
+        "value": "",
+        "EditProject": [
+            "Referent",
+            "EGPE"
+        ],
+        "ManageKeywords": [
+            "Referent",
+            "EGPE"
+        ],
+        "ManageFiles": [
+            "Referent",
+            "EGPE"
+        ],
+        "ManageYears": [
+            "Referent",
+            "EGPE"
+        ],
+        "ManageSpecializations": [
+            "Referent",
+            "EGPE"
+        ],
+        "RegeneratePDF": "EGPE",
+        "ChangeConfidentiality": [
+            "Referent",
+            "EGPE"
+        ]
+    },
+    "UserList": {
+        "value": ""
+    },
+    "UserProfile": {
+        "value": "",
+        "EditUser": "Administrator",
+        "ChangePassword": "Administrator"
+    },
+    "CreateUser": {
+        "value": "Administrator"
+    },
+    "SpecializationList": {
+        "value": [
+            "EGPE",
+            "Administrator"
+        ],
+        "DeleteSpecialization": "EGPE"
+    },
+    "SpecializationProfile": {
+        "value": "",
+        "EditSpecialization": "EGPE",
+        "ManageReferents": "EGPE"
+    },
+    "CreateSpecialization": {
+        "value": "EGPE"
+    },
+    "YearList": {
+        "value": [
+            "EGPE",
+            "Administrator"
+        ],
+        "DeleteYear": "EGPE"
+    },
+    "YearProfile": {
+        "value": "",
+        "EditYear": "EGPE"
+    },
+    "CreateYear": {
+        "value": "EGPE"
+    },
+    "Settings": {
+        "value": "",
+        "EditPlatform": ["EGPE", "Administrator"]
+    },
+    "CreatePRM": {
+        "value": "Administrator"
+    },
+    "PRMList": {
+        "value": "Administrator"
+    },
+    "CreateTeam": {
+        "value": "Administrator"
+    },
+    "TeamList": {
+        "value": "Administrator"
+    }
+}

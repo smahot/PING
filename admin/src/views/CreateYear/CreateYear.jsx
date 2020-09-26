@@ -15,9 +15,10 @@ import CardBody from "components/Card/CardBody.jsx";
 import CustomInput from "components/CustomInput/CustomInput.jsx";
 import Button from "components/CustomButtons/Button.jsx";
 import CardFooter from "components/Card/CardFooter.jsx";
-import Snackbar from "components/Snackbar/Snackbar.jsx";
-import AuthService from "components/AuthService"
 
+import AuthService from "../../components/AuthService";
+import { withSnackbar } from "../../providers/SnackbarProvider/SnackbarProvider";
+import { handleXhrError } from "../../components/ErrorHandler"
 import { api } from "config.json"
 
 const styles = theme => ({
@@ -70,9 +71,7 @@ class CreateYear extends React.Component {
             nameEn: "",
             nameFr: "",
             abbreviation: "",
-            success: false,
-            error: false,
-            message:""
+            redirect: false
         }
 
         this.handleChange = this.handleChange.bind(this);
@@ -90,22 +89,13 @@ class CreateYear extends React.Component {
     createYear() {
         this.setState({ error: false, success: false });
         if (this.state.nameFr === "")
-            this.setState({
-                error: true,
-                message: "Veuillez remplir le champ nom en français."
-            });
+            this.props.snackbar.error("Veuillez remplir le champ nom en français.");
 
         else if (this.state.nameEn === "")
-            this.setState({
-                error: true,
-                message: "Veuillez remplir le champ nom en anglais."
-            });
+            this.props.snackbar.error("Veuillez remplir le champ nom en anglais.");
 
         else if (this.state.abbreviation === "")
-            this.setState({
-                error: true,
-                message: "Veuillez remplir le champ Abbréviation."
-            });
+            this.props.snackbar.error("Veuillez remplir le champ Abbréviation.");
 
         else {
             let data = {
@@ -115,60 +105,36 @@ class CreateYear extends React.Component {
             };
 
             AuthService.fetch(api.host + ":" + api.port + "/api/year", {
-                method: "PUT",
+                method: "POST",
                 mode: "cors",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify(data)
             })
-                .then(res => res.json())
-                .then(data => {
-                    this.setState({
-                        success: true,
-                        message: "Année créée avec succès. Vous allez être redirigé vers la liste des années."
-                    });
+                .then(res => {
+                    if (!res.ok)
+                        throw res;
+                    else {
+                        this.props.snackbar.success("Année créée avec succès. Vous allez être redirigé vers la liste des années.");
 
-                    setTimeout(() => {
-                        this.setState({ redirect: true });
-                    }, 500);
+                        setTimeout(() => {
+                            this.setState({ redirect: true });
+                        }, 2500);
+                    }
                 })
-                .catch(err => {
-                    this.setState({
-                        error: true,
-                        message: "Une erreur est survenue lors de la création de l'année."
-                    });
-                    console.error(err);
-                });;
+                .catch(handleXhrError(this.props.snackbar));
         }
     }
 
     render() {
         const { classes } = this.props;
-        let redirect;
 
-        if (this.state.redirect) {
-            redirect = <Redirect to="/years" />
-        }
+        if (this.state.redirect) 
+            return <Redirect to="/years" />
+        
         return (
             <GridContainer>
-                {redirect}
-                <Snackbar
-                    place="tc"
-                    color="success"
-                    message={this.state.message}
-                    open={this.state.success}
-                    closeNotification={() => this.setState({ success: false })}
-                    close
-                />
-                <Snackbar
-                    place="tc"
-                    color="danger"
-                    message={this.state.message}
-                    open={this.state.error}
-                    closeNotification={() => this.setState({ error: false })}
-                    close
-                />
                 <GridItem xs={12} sm={12} md={12}>
                     <Card>
                         <CardHeader color="primary">
@@ -237,4 +203,4 @@ class CreateYear extends React.Component {
     }
 }
 
-export default withStyles(styles)(CreateYear);
+export default withSnackbar(withStyles(styles)(CreateYear));

@@ -4,46 +4,65 @@ import PropTypes from "prop-types";
 //import ChartistGraph from "react-chartist";
 // @material-ui/core
 import withStyles from "@material-ui/core/styles/withStyles";
-//import Icon from "@material-ui/core/Icon";
-// @material-ui/icons
-/*import Store from "@material-ui/icons/Store";
-import Warning from "@material-ui/icons/Warning";
-import DateRange from "@material-ui/icons/DateRange";
-import LocalOffer from "@material-ui/icons/LocalOffer";
-import Update from "@material-ui/icons/Update";
-import ArrowUpward from "@material-ui/icons/ArrowUpward";
-import AccessTime from "@material-ui/icons/AccessTime";
-import Accessibility from "@material-ui/icons/Accessibility";
-import BugReport from "@material-ui/icons/BugReport";
-import Code from "@material-ui/icons/Code";
-import Cloud from "@material-ui/icons/Cloud";*/
 // core components
 import GridItem from "components/Grid/GridItem.jsx";
 import GridContainer from "components/Grid/GridContainer.jsx";
-/*import Table from "components/Table/Table.jsx";
-import Tasks from "components/Tasks/Tasks.jsx";
-import CustomTabs from "components/CustomTabs/CustomTabs.jsx";
-import Danger from "components/Typography/Danger.jsx";
 import Card from "components/Card/Card.jsx";
 import CardHeader from "components/Card/CardHeader.jsx";
-import CardIcon from "components/Card/CardIcon.jsx";
 import CardBody from "components/Card/CardBody.jsx";
-import CardFooter from "components/Card/CardFooter.jsx";
+// internal components
+import { api } from "config.json"
+import AuthService from "../../components/AuthService";
+import { withSnackbar } from "../../providers/SnackbarProvider/SnackbarProvider";
+// chartjs
+import { Doughnut } from 'react-chartjs-2';
 
-import { bugs, website, server } from "variables/general.jsx";
-
-import {
-	dailySalesChart,
-	emailsSubscriptionChart,
-	completedTasksChart
-} from "variables/charts.jsx";*/
-
-import dashboardStyle from "assets/jss/material-dashboard-react/views/dashboardStyle.jsx";
+const styles = {
+	cardCategoryWhite: {
+		"&,& a,& a:hover,& a:focus": {
+			color: "rgba(255,255,255,.62)",
+			margin: "0",
+			fontSize: "14px",
+			marginTop: "0",
+			marginBottom: "0"
+		},
+		"& a,& a:hover,& a:focus": {
+			color: "#FFFFFF"
+		}
+	},
+	cardTitleWhite: {
+		color: "#FFFFFF",
+		marginTop: "0px",
+		minHeight: "auto",
+		fontWeight: "300",
+		fontFamily: "'Roboto', 'Helvetica', 'Arial', sans-serif",
+		marginBottom: "3px",
+		textDecoration: "none",
+		"& small": {
+			color: "#777",
+			fontSize: "65%",
+			fontWeight: "400",
+			lineHeight: "1"
+		}
+	}
+};
 
 class Dashboard extends React.Component {
-	state = {
-		value: 0
-	};
+	constructor(props) {
+		super(props)
+
+		this.state = {
+			value: 0,
+			stats: {
+				count: 0,
+				general: [],
+				byYear: [],
+				bySpe: [],
+				byYearSubSpe: []
+			},
+			statsLoaded: false
+		};
+	}
 	handleChange = (event, value) => {
 		this.setState({ value });
 	};
@@ -51,238 +70,128 @@ class Dashboard extends React.Component {
 	handleChangeIndex = index => {
 		this.setState({ value: index });
 	};
+
+	componentWillMount() {
+		this.loadStats();
+	}
+
+	loadStats() {
+		AuthService.fetch(api.host + ":" + api.port + "/api/project/stats")
+			.then(res => {
+				if (res.ok)
+					return res.json()
+				else
+					throw res;
+			})
+			.then(data => {
+				this.setState({ stats: data, statsLoaded: true });
+			})
+			.catch(err => {
+				console.error(err);
+				this.props.snackbar.notification("danger", "Une erreur est survenue lors du chargemement des statistiques.");
+			});
+	}
 	render() {
+		const { classes } = this.props;
+
 		return (
 			<GridContainer>
 				<GridItem xs={12}>
 					<img alt="Phoque you" src="/admin/phoque_you.jpg"></img>
 				</GridItem>
+				{this.state.statsLoaded && this.state.stats.count > 0 &&
+					<GridItem xs={12}>
+						<GridContainer>
+							<GridItem xs={12} md={6} lg={4}>
+								<Card>
+									<CardHeader color="primary">
+										<h4 className={classes.cardTitleWhite}>Statistiques des projets déposés</h4>
+									</CardHeader>
+									<CardBody>
+										<p>Nombre de projets déposés : {this.state.stats.count}</p>
+										<Doughnut data={{
+											labels: formatLabels(this.state.stats.general),
+											datasets: [{
+												data: formatStats(this.state.stats.general),
+												backgroundColor: [
+													'#4caf50',
+													'rgb(255, 152, 0)',
+													'rgb(244, 67, 54)',
+												],
+												options: {
+													cutoutPercentage: 50
+												}
+											}]
+										}} />
+									</CardBody>
+								</Card>
+							</GridItem>
+
+							<GridItem xs={12} md={12} lg={8}>
+								<Card>
+									<CardHeader color="primary">
+										<h4 className={classes.cardTitleWhite}>Projets triés par année</h4>
+									</CardHeader>
+									<CardBody>
+										<GridContainer>
+											{this.state.stats.byYear
+												.sort((y1, y2) => y1._id.study_year.name.fr > y2._id.study_year.name.fr)
+												.map(year =>
+													<GridItem xs={12} md={6} key={year._id.study_year._id}>
+														<h4>{year._id.study_year.name.fr}</h4>
+														<Doughnut data={{
+															labels: formatLabels(year.stats),
+															datasets: [{
+																data: formatStats(year.stats),
+																backgroundColor: [
+																	'#4caf50',
+																	'rgb(255, 152, 0)',
+																	'rgb(244, 67, 54)',
+																]
+															}]
+														}} />
+													</GridItem>
+												)}
+										</GridContainer>
+
+									</CardBody>
+								</Card>
+							</GridItem>
+							<GridItem xs={12} md={12} lg={12}>
+								<Card>
+									<CardHeader color="primary">
+										<h4 className={classes.cardTitleWhite}>Projets triés par majeure</h4>
+									</CardHeader>
+									<CardBody>
+										<GridContainer>
+											{this.state.stats.bySpe
+												.sort((s1, s2) => s1._id.specialization.name.fr > s2._id.specialization.name.fr)
+												.map(spe =>
+													<GridItem xs={12} md={6} lg={2} key={spe._id.specialization._id}>
+														<h4>{spe._id.specialization.name.fr}</h4>
+														<Doughnut data={{
+															labels: formatLabels(spe.stats),
+															datasets: [{
+																data: formatStats(spe.stats),
+																backgroundColor: [
+																	'#4caf50',
+																	'rgb(255, 152, 0)',
+																	'rgb(244, 67, 54)',
+																]
+															}]
+														}} />
+													</GridItem>
+												)}
+										</GridContainer>
+
+									</CardBody>
+								</Card>
+							</GridItem>
+						</GridContainer>
+					</GridItem>
+				}
 			</GridContainer>
 		)
-
-		/*return (
-			<div>
-				<GridContainer>
-					<GridItem xs={12} sm={6} md={3}>
-						<Card>
-							<CardHeader color="warning" stats icon>
-								<CardIcon color="warning">
-									<Icon>content_copy</Icon>
-								</CardIcon>
-								<p className={classes.cardCategory}>Used Space</p>
-								<h3 className={classes.cardTitle}>
-									49/50 <small>GB</small>
-								</h3>
-							</CardHeader>
-							<CardFooter stats>
-								<div className={classes.stats}>
-									<Danger>
-										<Warning />
-									</Danger>
-									<a href="#pablo" onClick={e => e.preventDefault()}>
-										Get more space
-                  </a>
-								</div>
-							</CardFooter>
-						</Card>
-					</GridItem>
-					<GridItem xs={12} sm={6} md={3}>
-						<Card>
-							<CardHeader color="success" stats icon>
-								<CardIcon color="success">
-									<Store />
-								</CardIcon>
-								<p className={classes.cardCategory}>Revenue</p>
-								<h3 className={classes.cardTitle}>$34,245</h3>
-							</CardHeader>
-							<CardFooter stats>
-								<div className={classes.stats}>
-									<DateRange />
-									Last 24 Hours
-                </div>
-							</CardFooter>
-						</Card>
-					</GridItem>
-					<GridItem xs={12} sm={6} md={3}>
-						<Card>
-							<CardHeader color="danger" stats icon>
-								<CardIcon color="danger">
-									<Icon>info_outline</Icon>
-								</CardIcon>
-								<p className={classes.cardCategory}>Fixed Issues</p>
-								<h3 className={classes.cardTitle}>75</h3>
-							</CardHeader>
-							<CardFooter stats>
-								<div className={classes.stats}>
-									<LocalOffer />
-									Tracked from Github
-                </div>
-							</CardFooter>
-						</Card>
-					</GridItem>
-					<GridItem xs={12} sm={6} md={3}>
-						<Card>
-							<CardHeader color="info" stats icon>
-								<CardIcon color="info">
-									<Accessibility />
-								</CardIcon>
-								<p className={classes.cardCategory}>Followers</p>
-								<h3 className={classes.cardTitle}>+245</h3>
-							</CardHeader>
-							<CardFooter stats>
-								<div className={classes.stats}>
-									<Update />
-									Just Updated
-                </div>
-							</CardFooter>
-						</Card>
-					</GridItem>
-				</GridContainer>
-				<GridContainer>
-					<GridItem xs={12} sm={12} md={4}>
-						<Card chart>
-							<CardHeader color="success">
-								<ChartistGraph
-									className="ct-chart"
-									data={dailySalesChart.data}
-									type="Line"
-									options={dailySalesChart.options}
-									listener={dailySalesChart.animation}
-								/>
-							</CardHeader>
-							<CardBody>
-								<h4 className={classes.cardTitle}>Daily Sales</h4>
-								<p className={classes.cardCategory}>
-									<span className={classes.successText}>
-										<ArrowUpward className={classes.upArrowCardCategory} /> 55%
-                  </span>{" "}
-									increase in today sales.
-                </p>
-							</CardBody>
-							<CardFooter chart>
-								<div className={classes.stats}>
-									<AccessTime /> updated 4 minutes ago
-                </div>
-							</CardFooter>
-						</Card>
-					</GridItem>
-					<GridItem xs={12} sm={12} md={4}>
-						<Card chart>
-							<CardHeader color="warning">
-								<ChartistGraph
-									className="ct-chart"
-									data={emailsSubscriptionChart.data}
-									type="Bar"
-									options={emailsSubscriptionChart.options}
-									responsiveOptions={emailsSubscriptionChart.responsiveOptions}
-									listener={emailsSubscriptionChart.animation}
-								/>
-							</CardHeader>
-							<CardBody>
-								<h4 className={classes.cardTitle}>Email Subscriptions</h4>
-								<p className={classes.cardCategory}>
-									Last Campaign Performance
-                </p>
-							</CardBody>
-							<CardFooter chart>
-								<div className={classes.stats}>
-									<AccessTime /> campaign sent 2 days ago
-                </div>
-							</CardFooter>
-						</Card>
-					</GridItem>
-					<GridItem xs={12} sm={12} md={4}>
-						<Card chart>
-							<CardHeader color="danger">
-								<ChartistGraph
-									className="ct-chart"
-									data={completedTasksChart.data}
-									type="Line"
-									options={completedTasksChart.options}
-									listener={completedTasksChart.animation}
-								/>
-							</CardHeader>
-							<CardBody>
-								<h4 className={classes.cardTitle}>Completed Tasks</h4>
-								<p className={classes.cardCategory}>
-									Last Campaign Performance
-                </p>
-							</CardBody>
-							<CardFooter chart>
-								<div className={classes.stats}>
-									<AccessTime /> campaign sent 2 days ago
-                </div>
-							</CardFooter>
-						</Card>
-					</GridItem>
-				</GridContainer>
-				<GridContainer>
-					<GridItem xs={12} sm={12} md={6}>
-						<CustomTabs
-							title="Tasks:"
-							headerColor="primary"
-							tabs={[
-								{
-									tabName: "Bugs",
-									tabIcon: BugReport,
-									tabContent: (
-										<Tasks
-											checkedIndexes={[0, 3]}
-											tasksIndexes={[0, 1, 2, 3]}
-											tasks={bugs}
-										/>
-									)
-								},
-								{
-									tabName: "Website",
-									tabIcon: Code,
-									tabContent: (
-										<Tasks
-											checkedIndexes={[0]}
-											tasksIndexes={[0, 1]}
-											tasks={website}
-										/>
-									)
-								},
-								{
-									tabName: "Server",
-									tabIcon: Cloud,
-									tabContent: (
-										<Tasks
-											checkedIndexes={[1]}
-											tasksIndexes={[0, 1, 2]}
-											tasks={server}
-										/>
-									)
-								}
-							]}
-						/>
-					</GridItem>
-					<GridItem xs={12} sm={12} md={6}>
-						<Card>
-							<CardHeader color="warning">
-								<h4 className={classes.cardTitleWhite}>Employees Stats</h4>
-								<p className={classes.cardCategoryWhite}>
-									New employees on 15th September, 2016
-                </p>
-							</CardHeader>
-							<CardBody>
-								<Table
-									tableHeaderColor="warning"
-									tableHead={["ID", "Name", "Salary", "Country"]}
-									tableData={[
-										["1", "Dakota Rice", "$36,738", "Niger"],
-										["2", "Minerva Hooper", "$23,789", "Curaçao"],
-										["3", "Sage Rodriguez", "$56,142", "Netherlands"],
-										["4", "Philip Chaney", "$38,735", "Korea, South"]
-									]}
-								/>
-							</CardBody>
-						</Card>
-					</GridItem>
-				</GridContainer>
-			</div>
-		);*/
 	}
 }
 
@@ -290,4 +199,28 @@ Dashboard.propTypes = {
 	classes: PropTypes.object.isRequired
 };
 
-export default withStyles(dashboardStyle)(Dashboard);
+export default withSnackbar(withStyles(styles)(Dashboard));
+
+function formatStats(stats) {
+	let status = ["validated", "pending", "rejected"];
+	let dataToReturn = [];
+
+	for (let i = 0; i < status.length; i++) {
+		let finder = stats.find(val => val.status === status[i])
+		if (finder === undefined)
+			dataToReturn[i] = 0;
+		else
+			dataToReturn[i] = finder.total;
+	}
+
+	return dataToReturn;
+}
+
+function formatLabels(stats) {
+	let statNumbers = formatStats(stats);
+	return [
+		"Validés (" + statNumbers[0] + ")",
+		"En attente (" + statNumbers[1] + ")",
+		"Refusés (" + statNumbers[2] + ")"
+	];
+}

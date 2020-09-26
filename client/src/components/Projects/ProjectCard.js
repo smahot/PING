@@ -57,17 +57,25 @@ class ProjectCard extends React.Component {
 
 		let partner;
 		if (this.props.showPartner) {
-			partner = (<Grid item xs >
-				<Typography variant="subtitle1" component="h2">
-					{i18n.t('partner.label', { lng })} : {project.partner.company}
-				</Typography>
-			</Grid>)
+			partner =
+				<Grid item xs >
+					<Typography variant="subtitle1" component="h2">
+						{i18n.t('partner.label', { lng })} : {project.partner.company}
+					</Typography>
+				</Grid>
 		}
 
 		if (project._id) {
 			return (
 				<div>
-					<Link to={`/Projects/${this.props.project._id}`} key={this.props.project._id}>
+					<Link
+						to={{
+							pathname: `/Projects/${this.props.project._id}`,
+							state: { project }
+						}}
+						key={this.props.project._id}
+						style={{ textDecoration: "none" }}
+					>
 						<Card style={{ borderBottom: 2, marginBottom: 8 }}>
 
 							<CardContent>
@@ -80,7 +88,7 @@ class ProjectCard extends React.Component {
 									<Grid item xs={4}>
 										{partner}
 										<Typography color="textSecondary" gutterBottom>
-											{new Date(project.sub_date).toLocaleDateString()}
+											{new Date(project.submissionDate).toLocaleDateString()}
 										</Typography>
 									</Grid>
 									{!this.props.showPartner &&
